@@ -9,13 +9,14 @@ class App extends Component {
   state = {
     globalStats: {},
     currenciesList: [],
-    currencyStats: []
+    currencyStats: [],
+    defaultCurrency: "bitcoin"
   } 
 
   componentDidMount(){
     this.sendRequest({apiPath: "/stats/currencies"});
     this.sendRequest({apiPath: "/stats/global"});
-    this.sendRequest({apiPath: "/currencies/bitcoin"}, this.drawCurrencyGraph);
+    this.sendRequest({apiPath: "/currencies/" + this.state.defaultCurrency}, this.drawCurrencyGraph);
   }
 
   sendRequest(req, callback){
@@ -38,7 +39,10 @@ class App extends Component {
       
     }
 
-    for(let i = 0; i < 800; i++){
+    var date = new Date(currencyToUSD[currencyToUSD.length - 1][0]);
+    console.log(date);
+
+    for(var i = 0; i < currencyToUSD.length; i++){
       dataToDraw.push(currencyToUSD[i][1]);
     }
     console.log(dataToDraw);
@@ -49,13 +53,19 @@ class App extends Component {
   render() {
     return (
       <div className="App">
-        <div className="canvas-container">
-          <canvas id="canvas" width="700" height="300"></canvas>
-          <div id="popup">
-          Hello
+        <div className="graph-container">
+          <div className="canvas-container">
+            <canvas id="canvas" width="700" height="300"></canvas>
+            <div id="popup">
+            Hello
+            </div>
+            <div id="vertical-line"></div>
           </div>
-          <div id="vertical-line"></div>
+          <div className="info-pane">
+
+          </div>
         </div>
+        
         <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
           <p>

@@ -31,9 +31,19 @@
     transform: rotate(360deg);
   }
 }
-
+.graph-container{
+  display: flex;
+  justify-content: space-around;
+}
 .canvas-container{
   margin: 30px 0;
+}
+.info-pane{
+  width: 20%;
+  height: 250px;
+  margin: 3% 0;
+  padding: 20px;
+  border: 1px solid black;
 }
 #popup{
   position: absolute; 

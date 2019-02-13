@@ -12,7 +12,7 @@ import (
 const APIPath = "https://s2.coinmarketcap.com/generated/"
 const globalStatsPath = APIPath + "stats/global.json"
 const currenciesListPath = APIPath + "search/quick_search.json"
-const cryptoCurrencyPath = "https://graphs2.coinmarketcap.com/currencies/ethereum/"
+const cryptoCurrencyPath = "https://graphs2.coinmarketcap.com/currencies/"
 
 type GlobalSettings struct {
 	Active_cryptocurrencies                  int
@@ -127,9 +127,10 @@ func GetCurrenciesListHandler(c *gin.Context) {
 }
 
 func GetCurrencyHandler(c *gin.Context) {
+	var currency = c.Param("currency")
 	var response ResponseObject
 	//Get Currency Stats
-	currencyStats := getCurrencyStats(cryptoCurrencyPath)
+	currencyStats := getCurrencyStats(cryptoCurrencyPath + currency)
 
 	if len(currencyStats.Market_cap_by_available_supply) > 0 {
 		response.Found = true
