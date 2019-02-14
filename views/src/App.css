@@ -58,6 +58,18 @@
   height: 150px;
   position: absolute;
   z-index: 100;
-  background-color: black;
+  background-color: #665e5e;
   top: 0;
+}
+#graph-dot{
+  width: 6px;
+  height: 6px;
+  position: absolute;
+  background-color: #665e5e;
+  border-radius: 3px;
+}
+#graph-select-area{
+  background-color: #665e5e55;
+  position: absolute;
+  width: 0;
 }

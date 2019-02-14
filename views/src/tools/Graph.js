@@ -11,6 +11,10 @@ export default {
             width: 0
         }
     },
+    dragPosition:{
+        x: undefined, 
+        y: undefined
+    },
 
     drawCanvas: function (data) {
         console.log(this.canvas.name);
@@ -19,7 +23,6 @@ export default {
         var originXPosition = 10;
         var width = cvs.width;
         var height = cvs.height;
-        console.log(width);
         var stepSize = (width - originXPosition) / (data.length - 1);
         var ctx;
         
@@ -39,7 +42,8 @@ export default {
                     top: height - data[i].positionX,
                     height: 1,
                     width: 1,
-                    value: data[i].value
+                    value: data[i].value,
+                    date:  data[i].date
                 });
                 stepPosition += stepSize;
             }
@@ -82,8 +86,23 @@ export default {
         document.getElementById(canvasName).addEventListener("mousemove", (event) => {
             this.handleMousemove(event);
         });
-
-    
+        document.getElementById(canvasName).addEventListener("mousedown", (event) => {
+            let selectedArea = document.getElementById("graph-select-area");
+            selectedArea.style.height = this.canvas.size.height + 'px';
+            selectedArea.style.top    = (this.canvas.position.y) + 'px';
+            selectedArea.style.left   = event.clientX + 'px';
+            this.dragPosition.x       = event.clientX;
+            //console.log(event.clientX);
+        });
+        document.getElementById(canvasName).addEventListener("mouseup", (event) => {
+            let selectedArea = document.getElementById("graph-select-area");
+            selectedArea.style.width  = '0px';
+            this.updateGraph(this.dragPosition.x, event.clientX);
+            this.dragPosition.x = undefined;
+        });
+        document.getElementById("graph-select-area").addEventListener("mousemove", (event) => {
+            this.handleMousemove(event);
+        });
         this.drawCanvas(data);
     },
 
@@ -105,22 +124,35 @@ export default {
     getPercentage: function(data, height){
         let total = 0;
         let newData = [];
-        let maxLimit = Math.max.apply(null, data);
-        let minLimit = Math.min.apply(null, data);
-        
-        data.forEach((n) => total += n);
+
+        let values = data.map((d) => {return d[1]});
+        let maxLimit = Math.max.apply(null, values);
+        let minLimit = Math.min.apply(null, values);
+        let pointDate, tmpDate;
+
+        data.forEach((n) => total += n[1]);
 
         /*Space 5% between highest value and canvas top*/
         let offsetTop = ((maxLimit - minLimit) / 100) * 5;
         data.forEach((n) => {
+                tmpDate = new Date(n[0]);
+                pointDate = tmpDate.getDate() + '/' + (tmpDate.getMonth() + 1) + '/' + tmpDate.getFullYear();
+                pointDate += ' ' + tmpDate.getHours() + ':' + tmpDate.getMinutes();
+            
                 newData.push({
-                value:     n,
-                positionX: ((n*height) / (maxLimit + offsetTop)),
-                percent:   ((n) / (maxLimit + offsetTop)),
+                value:     n[1],
+                date:      pointDate,
+                positionX: ((n[1]*height) / (maxLimit + offsetTop)),
+                percent:   ((n[1]) / (maxLimit + offsetTop)),
             });
         });
         
         return newData;
+    },
+
+    handleMouseDown: function(e){
+        
+        console.log("here");
     },
 
     handleMousemove(e){
@@ -133,29 +165,69 @@ export default {
         /*var y = parseInt(e.clientY - cvs.position.y);*/
         var found = false;
         let point;
+        if(this.dragPosition.x){
+            let selectedArea = document.getElementById("graph-select-area");
+            let areaWidth = e.clientX - this.dragPosition.x;
+            console.log('AA: ' + areaWidth, e.clientX, this.dragPosition.x);
+            selectedArea.style.width = areaWidth + 'px';
+            return;
+        }
 
         if(this.points){
             for(let i = 0; i < this.points.length; i++){
                 point = this.points[i];
                 if (x > point.left && x < point.left + point.width) {
-                    var div = document.getElementById('popup');
-                    div.style.left = (e.clientX - 80) +'px';
-                    div.style.top = point.top +'px';
-                    div.innerHTML = point.value; 
+                    //var div = document.getElementById('popup');
+                    //div.style.left = (e.clientX - 80) +'px';
+                    //div.style.top = point.top +'px';
+                    //div.innerHTML = point.value; 
                     found = true;
                     break;
                 }
             }
-            div = document.getElementById('popup');
-            div.style.display = found ? "block" : "none";
+            //div = document.getElementById('popup');
+            //div.style.display = found ? "block" : "none";
 
             var line = document.getElementById('vertical-line');
             line.style.left     = e.clientX +'px';
             line.style.top      = (cvs.position.y + point.top) +'px';
             line.style.height   = (cvs.size.height - (point.top)) +'px';
-        }        
+
+            var dot = document.getElementById('graph-dot');
+            dot.style.top       = (cvs.position.y + point.top - (dot.clientHeight / 2)) +'px';
+            dot.style.left      = e.clientX - (dot.clientWidth / 2) +'px';
+
+            document.getElementById("graph-value-text").innerHTML = point.value;
+            document.getElementById("graph-date-text").innerHTML  = point.date;
+        }   
+        
+        
+        
+       // selectedArea.style.top = (this.canvas.size.height + this.canvas.position.y) + 'px';
+        //this.dragPosition.x = (event.clientX - this.canvas.position.x);
+    },
+
+    updateGraph: function(startDrag, endDrag){
+        let startDate, endDate;
+        startDrag = startDrag - this.canvas.position.x;
+        endDrag   = endDrag - this.canvas.position.x;
+
+        for(let i = 1; i < this.points.length; i++){
+            if(this.points[i - 1].left < startDrag && this.points[i].left > startDrag){
+                startDate = this.points[i - 1].date;
+            }
+            if(this.points[i - 1].left < endDrag && this.points[i].left > endDrag){
+                endDate = this.points[i - 1].date;
+            }
+            if(startDate && endDate) break;
+        }
+
+
+        console.log(startDate, endDate);
+        window.appComponent.loadGraph();
     }
 }
+
 
 
 

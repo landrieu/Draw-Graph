@@ -17,6 +17,12 @@ class App extends Component {
     this.sendRequest({apiPath: "/stats/currencies"});
     this.sendRequest({apiPath: "/stats/global"});
     this.sendRequest({apiPath: "/currencies/" + this.state.defaultCurrency}, this.drawCurrencyGraph);
+    window.appComponent = this;
+  }
+
+  loadGraph(){
+    console.log("UUUU");
+    //this.setState({})
   }
 
   sendRequest(req, callback){
@@ -43,7 +49,7 @@ class App extends Component {
     console.log(date);
 
     for(var i = 0; i < currencyToUSD.length; i++){
-      dataToDraw.push(currencyToUSD[i][1]);
+      dataToDraw.push(currencyToUSD[i]);
     }
     console.log(dataToDraw);
 
@@ -60,9 +66,14 @@ class App extends Component {
             Hello
             </div>
             <div id="vertical-line"></div>
+            <div id="graph-dot"></div>
+            <div id="graph-select-area"></div>
           </div>
           <div className="info-pane">
-
+            <div className="graph-date-value">
+              <div className="graph-date">Date: <span id="graph-date-text"></span></div>
+              <div className="graph-value">Value: <span id="graph-value-text"></span></div>
+            </div>
           </div>
         </div>
         
