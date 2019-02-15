@@ -17,7 +17,7 @@ export default {
     },
 
     drawCanvas: function (data) {
-        console.log(this.canvas.name);
+        
         var cvs = document.getElementById(this.canvas.name);
         var stepPosition = 10;
         var originXPosition = 10;
@@ -31,6 +31,7 @@ export default {
         if (cvs.getContext) {
 
             ctx = cvs.getContext('2d');
+            ctx.clearRect(0, 0, width, height);
             ctx.beginPath();
             ctx.moveTo(stepPosition, height - data[0].positionX);
             
@@ -38,12 +39,13 @@ export default {
                 ctx.lineTo(stepPosition, height - data[i].positionX);
                 /*ctx.fillRect(stepPosition - 1,height - (data[i].positionX) - 1,3,3);*/
                 this.points.push({
-                    left: stepPosition,
-                    top: height - data[i].positionX,
-                    height: 1,
-                    width: 1,
-                    value: data[i].value,
-                    date:  data[i].date
+                    left:    stepPosition,
+                    top:     height - data[i].positionX,
+                    height:  1,
+                    width:   1,
+                    value:   data[i].value,
+                    date:    data[i].date,
+                    rawDate: data[i].rawDate
                 });
                 stepPosition += stepSize;
             }
@@ -75,34 +77,36 @@ export default {
             ctx.strokeStyle = "#a4a4a4";
             ctx.stroke();
             ctx.closePath();
-
-            
         }
     },
 
     drawData: function (canvasName, data){
-
+        this.points = [];
         this.setCanvasParameters(canvasName);
         document.getElementById(canvasName).addEventListener("mousemove", (event) => {
             this.handleMousemove(event);
         });
+
         document.getElementById(canvasName).addEventListener("mousedown", (event) => {
-            let selectedArea = document.getElementById("graph-select-area");
-            selectedArea.style.height = this.canvas.size.height + 'px';
-            selectedArea.style.top    = (this.canvas.position.y) + 'px';
-            selectedArea.style.left   = event.clientX + 'px';
-            this.dragPosition.x       = event.clientX;
-            //console.log(event.clientX);
+            this.handleMouseDown(event);
         });
+        document.getElementById("vertical-line").addEventListener("mousedown", (event) => {
+            this.handleMouseDown(event);
+        });
+
         document.getElementById(canvasName).addEventListener("mouseup", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             let selectedArea = document.getElementById("graph-select-area");
             selectedArea.style.width  = '0px';
             this.updateGraph(this.dragPosition.x, event.clientX);
             this.dragPosition.x = undefined;
         });
+
         document.getElementById("graph-select-area").addEventListener("mousemove", (event) => {
             this.handleMousemove(event);
         });
+
         this.drawCanvas(data);
     },
 
@@ -142,6 +146,7 @@ export default {
                 newData.push({
                 value:     n[1],
                 date:      pointDate,
+                rawDate:   n[0],
                 positionX: ((n[1]*height) / (maxLimit + offsetTop)),
                 percent:   ((n[1]) / (maxLimit + offsetTop)),
             });
@@ -150,7 +155,17 @@ export default {
         return newData;
     },
 
-    handleMouseDown: function(e){
+    handleMouseDown: function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        let selectedArea = document.getElementById("graph-select-area");
+        selectedArea.style.height = this.canvas.size.height + 'px';
+        selectedArea.style.top    = (this.canvas.position.y) + 'px';
+        selectedArea.style.left   = event.clientX + 'px';
+        this.dragPosition.x       = event.clientX;
+    },
+
+    handleMouseUp: function(e){
         
         console.log("here");
     },
@@ -162,26 +177,25 @@ export default {
 
         var cvs = this.canvas;
         var x = parseInt(e.clientX - cvs.position.x);
-        /*var y = parseInt(e.clientY - cvs.position.y);*/
-        var found = false;
+       // var found = false;
         let point;
         if(this.dragPosition.x){
             let selectedArea = document.getElementById("graph-select-area");
             let areaWidth = e.clientX - this.dragPosition.x;
-            console.log('AA: ' + areaWidth, e.clientX, this.dragPosition.x);
             selectedArea.style.width = areaWidth + 'px';
             return;
         }
 
         if(this.points){
-            for(let i = 0; i < this.points.length; i++){
+            for(let i = 1; i < this.points.length; i++){
                 point = this.points[i];
-                if (x > point.left && x < point.left + point.width) {
+                //if (x > point.left && x < point.left + point.width) {
+                if(this.points[i - 1].left < x && this.points[i].left > x){
                     //var div = document.getElementById('popup');
                     //div.style.left = (e.clientX - 80) +'px';
                     //div.style.top = point.top +'px';
                     //div.innerHTML = point.value; 
-                    found = true;
+                    //found = true;
                     break;
                 }
             }
@@ -204,7 +218,7 @@ export default {
         
         
        // selectedArea.style.top = (this.canvas.size.height + this.canvas.position.y) + 'px';
-        //this.dragPosition.x = (event.clientX - this.canvas.position.x);
+      //this.dragPosition.x = (event.clientX - this.canvas.position.x);
     },
 
     updateGraph: function(startDrag, endDrag){
@@ -214,17 +228,15 @@ export default {
 
         for(let i = 1; i < this.points.length; i++){
             if(this.points[i - 1].left < startDrag && this.points[i].left > startDrag){
-                startDate = this.points[i - 1].date;
+                startDate = this.points[i - 1].rawDate;
             }
             if(this.points[i - 1].left < endDrag && this.points[i].left > endDrag){
-                endDate = this.points[i - 1].date;
+                endDate = this.points[i - 1].rawDate;
             }
             if(startDate && endDate) break;
         }
 
-
-        console.log(startDate, endDate);
-        window.appComponent.loadGraph();
+        window.appComponent.loadGraph(startDate, endDate);
     }
 }
 

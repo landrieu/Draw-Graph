@@ -30,11 +30,11 @@ type CryptoCurrencyStats struct {
 }
 
 type CryptoCurrencyInfo struct {
-	id     int
-	Name   string
-	Rank   int
-	Slug   string
-	Symbol string
+	Id     int	  `json:"id"`
+	Name   string `json:"name"`
+	Rank   int    `json:"rank"`
+	Slug   string `json:"slug"`
+	Symbol string `json:"symbol"`
 }
 
 type ResponseObject struct {
@@ -65,6 +65,11 @@ func main() {
 	// Serve frontend static files
 	router.Use(static.Serve("/", static.LocalFile("./views/public", true)))
 	initializeRoutes()
+
+	/*router.GET("/ws", func(c *gin.Context) {
+		handler := websocket.Handler(EchoServer)
+		handler.ServeHTTP(c.Writer, c.Req)
+	})*/
 
 	// Start and run the server
 	router.Run(":8082")
@@ -128,9 +133,17 @@ func GetCurrenciesListHandler(c *gin.Context) {
 
 func GetCurrencyHandler(c *gin.Context) {
 	var currency = c.Param("currency")
+	startTime := c.Query("startTime")
+	endTime := c.Query("endTime")
+
+	var url string = cryptoCurrencyPath + currency
+	if startTime != "" && endTime != "" {
+		url = url + "/" + startTime + "/" + endTime
+	}
+	fmt.Print("Start: ", url)
 	var response ResponseObject
 	//Get Currency Stats
-	currencyStats := getCurrencyStats(cryptoCurrencyPath + currency)
+	currencyStats := getCurrencyStats(url)
 
 	if len(currencyStats.Market_cap_by_available_supply) > 0 {
 		response.Found = true
@@ -139,7 +152,7 @@ func GetCurrencyHandler(c *gin.Context) {
 		response.Found = false
 		response.Message = "No currency found"
 	}
-
+	fmt.Print("Length: ", len(currencyStats.Price_usd))
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, response)
 }
