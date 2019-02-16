@@ -1,5 +1,21 @@
 export default {
     points: [],
+    elementsID: {
+        graphLine:          "vertical-line",
+        graphDot:           "graph-dot",
+        graphSelectedArea:  "graph-select-area",
+        graphY:             "graph-date-text",
+        graphX:             "graph-value-text"
+    },
+    style:{
+        strokeColor: "#397ee4",
+        fillColor:   "#397ee448",
+        axisColor:   "#a4a4a4"
+    },
+    graphOrigin: {
+        x: 60,
+        y: 60
+    },
     canvas: {
         name: "",
         position:{
@@ -19,8 +35,9 @@ export default {
     drawCanvas: function (data) {
         
         var cvs = document.getElementById(this.canvas.name);
-        var stepPosition = 10;
-        var originXPosition = 10;
+        var originXPosition = this.graphOrigin.x;
+        var originYPosition = this.graphOrigin.y;
+        var stepPosition = originXPosition;
         var width = cvs.width;
         var height = cvs.height;
         var stepSize = (width - originXPosition) / (data.length - 1);
@@ -33,14 +50,14 @@ export default {
             ctx = cvs.getContext('2d');
             ctx.clearRect(0, 0, width, height);
             ctx.beginPath();
-            ctx.moveTo(stepPosition, height - data[0].positionX);
+            ctx.moveTo(stepPosition, height - data[0].positionY);
             
             for(let i = 0; i < data.length; i++){
-                ctx.lineTo(stepPosition, height - data[i].positionX);
-                /*ctx.fillRect(stepPosition - 1,height - (data[i].positionX) - 1,3,3);*/
+                ctx.lineTo(stepPosition, height - data[i].positionY);
+                /*ctx.fillRect(stepPosition - 1,height - (data[i].positionY) - 1,3,3);*/
                 this.points.push({
                     left:    stepPosition,
-                    top:     height - data[i].positionX,
+                    top:     height - data[i].positionY,
                     height:  1,
                     width:   1,
                     value:   data[i].value,
@@ -50,31 +67,33 @@ export default {
                 stepPosition += stepSize;
             }
             
-            ctx.strokeStyle = "#397ee4";
+            ctx.strokeStyle = this.style.strokeColor;
             ctx.stroke();
             
             /*Fill space under graph*/
-            ctx.lineTo(stepPosition - stepSize, width);
-            ctx.lineTo(originXPosition, width);
-            ctx.fillStyle = "#397ee448";
+            ctx.lineTo(stepPosition,    width);
+            ctx.lineTo(stepPosition,    height - originYPosition);
+            ctx.lineTo(originXPosition, height -originYPosition);
+            ctx.fillStyle = this.style.fillColor;
             ctx.fill();
             ctx.closePath();
             
             /*Y axis*/
             ctx.beginPath();
             ctx.moveTo(originXPosition, 0);
-            ctx.lineTo(originXPosition, height + originXPosition);
-            ctx.lineTo(width + originXPosition, width + originXPosition);
-            ctx.strokeStyle = "#a4a4a4";
+            ctx.lineTo(originXPosition, height - originYPosition);
+            //ctx.lineTo(width + originXPosition, width + originXPosition);
+            ctx.strokeStyle = this.style.axisColor;
             ctx.stroke();
             ctx.closePath();
             
             /*X axis*/
+            console.log("fz"+ width);
             ctx.beginPath();
-            ctx.moveTo(originXPosition -5 , height -1 );
-            ctx.lineTo(width  , height - 1);
-            ctx.lineTo(width + originXPosition, width + originXPosition);
-            ctx.strokeStyle = "#a4a4a4";
+            ctx.moveTo(originXPosition , height - originYPosition);
+            ctx.lineTo(width,            height - originYPosition);
+            //ctx.lineTo(width + originXPosition, width + originXPosition);
+            ctx.strokeStyle = this.style.axisColor;
             ctx.stroke();
             ctx.closePath();
         }
@@ -90,20 +109,45 @@ export default {
         document.getElementById(canvasName).addEventListener("mousedown", (event) => {
             this.handleMouseDown(event);
         });
-        document.getElementById("vertical-line").addEventListener("mousedown", (event) => {
+        document.getElementById(this.elementsID.graphLine).addEventListener("mousedown", (event) => {
             this.handleMouseDown(event);
+        });
+
+        /*document.getElementById("canvas-container").addEventListener("mouseleave", (event) => {
+            console.log("out");
+        });*/
+
+        document.addEventListener("mouseup", (event) => {
+
+            if(!this.dragPosition.x) return;
+
+            let cvsBounding = document.getElementById(this.canvas.name).getBoundingClientRect();
+            let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
+            let selectedAreaBounding = selectedArea.getBoundingClientRect();
+
+            if(event.clientX > (cvsBounding.width + cvsBounding.x) || event.clientY > (cvsBounding.y + cvsBounding.height) || event.clientY < (cvsBounding.y)){
+                this.updateGraph(this.dragPosition.x, selectedAreaBounding.width + selectedAreaBounding.x);
+            }/*else if(event.clientX < cvsBounding.x){
+                console.log("Do nothing");
+            }else{
+                console.log("Nothing");
+            }*/
+            
+            selectedArea.style.width  = '0px';
+            this.dragPosition.x = undefined;
         });
 
         document.getElementById(canvasName).addEventListener("mouseup", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            let selectedArea = document.getElementById("graph-select-area");
-            selectedArea.style.width  = '0px';
+            let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
+
             this.updateGraph(this.dragPosition.x, event.clientX);
+            selectedArea.style.width  = '0px';
             this.dragPosition.x = undefined;
         });
 
-        document.getElementById("graph-select-area").addEventListener("mousemove", (event) => {
+        document.getElementById(this.elementsID.graphSelectedArea).addEventListener("mousemove", (event) => {
             this.handleMousemove(event);
         });
 
@@ -125,41 +169,55 @@ export default {
         }  
     },
 
-    getPercentage: function(data, height){
-        let total = 0;
-        let newData = [];
+    formatEpochTime : function(date){
+        let tmpDate = new Date(date);
+        let pointDate = tmpDate.getDate() + '/' + (tmpDate.getMonth() + 1) + '/' + tmpDate.getFullYear();
+        pointDate += ' ' + tmpDate.getHours() + ':' + tmpDate.getMinutes();
+        
+        return pointDate;
+    },
 
-        let values = data.map((d) => {return d[1]});
+    getPercentage: function(data, height){
+        
+        let values = data.map((d) => {return d.y});
         let maxLimit = Math.max.apply(null, values);
         let minLimit = Math.min.apply(null, values);
-        let pointDate, tmpDate;
-
-        data.forEach((n) => total += n[1]);
+        
+        //let total = 0;
+        //data.forEach((n) => total += n.y);
 
         /*Space 5% between highest value and canvas top*/
-        let offsetTop = ((maxLimit - minLimit) / 100) * 5;
-        data.forEach((n) => {
-                tmpDate = new Date(n[0]);
-                pointDate = tmpDate.getDate() + '/' + (tmpDate.getMonth() + 1) + '/' + tmpDate.getFullYear();
-                pointDate += ' ' + tmpDate.getHours() + ':' + tmpDate.getMinutes();
-            
-                newData.push({
-                value:     n[1],
-                date:      pointDate,
-                rawDate:   n[0],
-                positionX: ((n[1]*height) / (maxLimit + offsetTop)),
-                percent:   ((n[1]) / (maxLimit + offsetTop)),
-            });
+
+        var changeScale = function(v){
+            let max = 1;
+            let min = 0;
+            let ratio = (((max - min) / (maxLimit - minLimit)) * (v - maxLimit)) + max;
+             
+            return ratio;
+        }
+
+        let offsetTop = (height / 100) * 5;
+        let maxValue = height - (offsetTop) - this.graphOrigin.y;
+        let offsetY  = this.graphOrigin.y;
+
+        let newData = data.map((n) => {
+                return {
+                    date:      this.formatEpochTime(n.x),
+                    rawDate:   n.x,
+                    value:     n.y,
+                    positionY: (changeScale(n.y) * maxValue) + offsetY,
+                    //percent:   ((n.y) / (maxLimit + offsetTop)),
+            };
         });
-        
+
         return newData;
     },
 
     handleMouseDown: function(event){
         event.preventDefault();
         event.stopPropagation();
-        let selectedArea = document.getElementById("graph-select-area");
-        selectedArea.style.height = this.canvas.size.height + 'px';
+        let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
+        selectedArea.style.height = (this.canvas.size.height - this.graphOrigin.y) + 'px';
         selectedArea.style.top    = (this.canvas.position.y) + 'px';
         selectedArea.style.left   = event.clientX + 'px';
         this.dragPosition.x       = event.clientX;
@@ -180,7 +238,7 @@ export default {
        // var found = false;
         let point;
         if(this.dragPosition.x){
-            let selectedArea = document.getElementById("graph-select-area");
+            let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
             let areaWidth = e.clientX - this.dragPosition.x;
             selectedArea.style.width = areaWidth + 'px';
             return;
@@ -202,17 +260,22 @@ export default {
             //div = document.getElementById('popup');
             //div.style.display = found ? "block" : "none";
 
-            var line = document.getElementById('vertical-line');
-            line.style.left     = e.clientX +'px';
+            var line = document.getElementById(this.elementsID.graphLine);
+            line.style.left     = (point.left + cvs.position.x) +'px';
             line.style.top      = (cvs.position.y + point.top) +'px';
-            line.style.height   = (cvs.size.height - (point.top)) +'px';
+            line.style.height   = (cvs.size.height - (point.top)) - this.graphOrigin.y +'px';
 
-            var dot = document.getElementById('graph-dot');
+            var horizLine = document.getElementById("horizontal-line");
+            horizLine.style.left     = cvs.position.x + this.graphOrigin.x +'px';
+            horizLine.style.top      = (cvs.position.y + point.top) +'px';
+            horizLine.style.width    = (point.left - this.graphOrigin.x)+'px';
+
+            var dot = document.getElementById(this.elementsID.graphDot);
             dot.style.top       = (cvs.position.y + point.top - (dot.clientHeight / 2)) +'px';
-            dot.style.left      = e.clientX - (dot.clientWidth / 2) +'px';
+            dot.style.left      = (point.left + cvs.position.x) - (dot.clientWidth / 2) +'px';
 
-            document.getElementById("graph-value-text").innerHTML = point.value;
-            document.getElementById("graph-date-text").innerHTML  = point.date;
+            document.getElementById(this.elementsID.graphY).innerHTML = point.value;
+            document.getElementById(this.elementsID.graphX).innerHTML = point.date;
         }   
         
         
@@ -222,6 +285,7 @@ export default {
     },
 
     updateGraph: function(startDrag, endDrag){
+        if(startDrag > endDrag) return;
         let startDate, endDate;
         startDrag = startDrag - this.canvas.position.x;
         endDrag   = endDrag - this.canvas.position.x;
@@ -239,10 +303,6 @@ export default {
         window.appComponent.loadGraph(startDate, endDate);
     }
 }
-
-
-
-
 
 Array.prototype.max = function() {
     return Math.max.apply(null, this);

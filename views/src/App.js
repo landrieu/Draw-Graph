@@ -11,6 +11,7 @@ class App extends Component {
     currenciesList: [],
     currencyStats: [],
     defaultCurrency: "dash",
+    currentCurrency: {},
     loadingGraph: true 
   } 
 
@@ -19,11 +20,19 @@ class App extends Component {
     this.sendRequest({apiPath: "/stats/global"});
     this.sendRequest({apiPath: "/currencies/" + this.state.defaultCurrency}, this.drawCurrencyGraph);
     window.appComponent = this;
+
+    /*let selected = document.getElementById("currency-select");
+    var notes = null;
+    for (var i = 0; i < doc.childNodes.length; i++) {
+        if (doc.childNodes[i].className == "4") {
+          notes = doc.childNodes[i];
+          break;
+        }        
+    }
+    selected.childNodes[i].className*/
   }
 
   loadGraph(startTime, endTime){
-
-    console.log("UUUU: " + startTime, endTime);
     if(startTime && endTime){
       let additionalURL = 'startTime=' + startTime + '&endTime=' + endTime;
       this.sendRequest({apiPath: "/currencies/" + this.state.defaultCurrency,param: additionalURL}, this.drawCurrencyGraph);
@@ -48,19 +57,76 @@ class App extends Component {
     let currenciesList = data.results;
     let nbCurrencyToDisplay = 50;
     let selectCurrencyComponent = document.getElementById("select-currency-display");
-    let tmpElement, tmpTextNode;
+    let tmpElement, tmpTextNode, tmpImageNode, tmpValueNode, tmpImageContainer, tmpValueContainer;
+    let currenciesListDiv = document.getElementById("currencies-list");
+    let currentCurrency;
+    let that = this;
 
     for(let i = 0; i < nbCurrencyToDisplay; i++){
-      tmpElement = document.createElement("option");
+      tmpElement = document.createElement("div");
+      tmpElement.setAttribute("class", "currency-element");
       tmpElement.setAttribute("value", currenciesList[i].slug);
-      tmpTextNode = document.createTextNode(currenciesList[i].name);
-      tmpElement.appendChild(tmpTextNode);
-      selectCurrencyComponent.appendChild(tmpElement);
+      //tmpElement.setAttribute("onclick", "selectCurrency(" + currenciesList[i].slug + ")");
+      tmpImageContainer = document.createElement("div");
+      tmpImageContainer.setAttribute("class", "currency-image-container");
+      tmpValueContainer = document.createElement("div");
+      tmpValueContainer.setAttribute("class", "currency-value-container");
+      tmpImageNode = document.createElement("img");
+      tmpImageNode.setAttribute("class", "currency-image");
+      tmpImageNode.setAttribute("src", "https://s2.coinmarketcap.com/static/img/coins/32x32/" + currenciesList[i].id + ".png");
+      tmpValueNode = document.createElement("span");
+      tmpValueNode.innerHTML = currenciesList[i].name;
+      tmpImageContainer.appendChild(tmpImageNode);
+      tmpElement.appendChild(tmpImageContainer);
+      tmpValueContainer.appendChild(tmpValueNode);
+      tmpElement.appendChild(tmpValueContainer);
+      currenciesListDiv.appendChild(tmpElement);
+
+      if(this.state.defaultCurrency === currenciesList[i].slug){
+        this.setState({currentCurrency: currenciesList[i]});
+      }
     }
+
+    let currencyElementArray = document.getElementsByClassName("currency-element");
+
+    Array.from(currencyElementArray).forEach(function(element) {
+      element.addEventListener('click', (event) => {
+        //let currencySelected = event.currentTarget.getAttribute("value");
+        that.selectCurrency(event.currentTarget.getAttribute("value"));
+      });
+    });
+
+    this.setState({currenciesList: currenciesList});
   }
 
-  selectCurrency = (c) => {
-    console.log(c);
+  formatData = (data) => {
+    return data.map((d) => {
+      return {
+        x: d[0],
+        y: d[1]
+      }
+    });
+  }
+
+  selectCurrency = (currencySelected) => {
+    console.log("bui");
+    let list = document.getElementById("currencies-list");
+    if(list){
+      list.style.display = "none";
+      let currenciesList = this.state.currenciesList;
+      let newCurrency = {};
+      
+      for(let i = 0; i < 50; i++){
+        if(currencySelected === currenciesList[i].slug){
+          newCurrency = currenciesList[i];
+          this.setState({currentCurrency: newCurrency});
+          break;
+        }
+      }
+      this.sendRequest({apiPath: "/currencies/" + newCurrency.slug}, this.drawCurrencyGraph);
+      this.setState({loadingGraph: true});
+    }
+    //
   }
  
   drawCurrencyGraph = (data) => {
@@ -79,12 +145,49 @@ class App extends Component {
 
     this.setState({loadingGraph: false});
     let startTime = new Date();
-    Graph.drawData("canvas", dataToDraw);
+    Graph.drawData("canvas", this.formatData(dataToDraw));
+    //console.log();
 
     let endTime = new Date();
     let timeDiff = endTime - startTime; //in ms
     var seconds = Math.round(timeDiff);
     console.log(seconds + " mseconds");   
+  }
+
+  getCurrencyImage = (imageID) => {
+    let imagePath;
+    if(imageID){
+      imagePath = "https://s2.coinmarketcap.com/static/img/coins/32x32/" + imageID + ".png";
+    }
+
+    return imagePath;
+  }
+
+  clickArrow = () => {
+    let list = document.getElementById("currencies-list");
+    if(list){
+      list.style.display = "block";
+    }
+    
+  }
+
+  renderSelectCurrency() {
+    return(
+      <div id="select-container">
+        <div id="currency-select">
+          <div className="currency-image-container">
+            <img className="currency-image" src={this.getCurrencyImage(this.state.currentCurrency.id)}/>
+          </div>
+          <div className="currency-value-container">
+            <span>{this.state.currentCurrency.name}</span>
+          </div>
+          <div className="down-arrow-container" onClick={this.clickArrow.bind()}>
+            <div></div>
+          </div>
+        </div>
+        <div id="currencies-list"></div>
+      </div>
+    )
   }
 
   renderGraph() {
@@ -95,24 +198,25 @@ class App extends Component {
       )
     }else{
       return(
-        <div className="canvas-container">
-        <canvas id="canvas" width="700" height="300"></canvas>
+        <div id="canvas-container">
+        <canvas id="canvas" width="800" height="500"></canvas>
         <div id="popup">
         Hello
         </div>
         <div id="vertical-line"></div>
+        <div id="horizontal-line"></div>
         <div id="graph-dot"></div>
         <div id="graph-select-area"></div>
       </div>
       )
     }
   }
- 
+  //<select id="select-currency-display" onChange={this.selectCurrency.bind(this)}></select>
   render() {  
     return (  
       <div className="App">
         <div className="select-currency">
-          <select id="select-currency-display" onChange={this.selectCurrency.bind(this.value)}></select>
+          {this.renderSelectCurrency()}
         </div>
         <div className="graph-container">
           {this.renderGraph()}
