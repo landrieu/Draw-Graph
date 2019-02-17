@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
+
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
@@ -72,6 +76,11 @@ type Client struct {
 	LastRequest string
 }
 
+type Conf struct {
+	Currency string `json:"currency"`
+	Time     int64  `json:"time"`
+}
+
 var upgrader = websocket.Upgrader{}
 var wsupgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -107,6 +116,11 @@ func main() {
 		wshandler(c.Writer, c.Request)
 	})
 
+	var c Conf
+	c.getConf()
+
+	fmt.Println(c)
+
 	// Start and run the server
 	router.Run(":8082")
 
@@ -117,6 +131,21 @@ func main() {
 	//Get Currencies List
 	//v := getCurrenciesList(currenciesListPath)
 	//fmt.Print(v)
+}
+
+func (c *Conf) getConf() *Conf {
+
+	absPath, _ := filepath.Abs("conf.yaml")
+	yamlFile, err := ioutil.ReadFile(absPath)
+	if err != nil {
+		log.Printf("yamlFile.Get err   #%v ", err)
+	}
+	err = yaml.Unmarshal(yamlFile, c)
+	if err != nil {
+		log.Fatalf("Unmarshal: %v", err)
+	}
+
+	return c
 }
 
 func wshandler(w http.ResponseWriter, r *http.Request) {
