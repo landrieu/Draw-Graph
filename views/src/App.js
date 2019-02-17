@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import Parameters from './services/Parameters';
 import Graph from './tools/Graph';
-import logo from './logo.svg';
+//import logo from './logo.svg';
+import loading from './loading.svg';
 import './App.css';
 import axios from 'axios';
 
@@ -10,7 +11,7 @@ class App extends Component {
     globalStats: {},
     currenciesList: [],
     currencyStats: [],
-    defaultCurrency: "dash",
+    defaultCurrency: "bitcoin",
     currentCurrency: {},
     loadingGraph: true 
   } 
@@ -19,17 +20,50 @@ class App extends Component {
     this.sendRequest({apiPath: "/stats/currencies"}, this.initSelectCurrency);
     this.sendRequest({apiPath: "/stats/global"});
     this.sendRequest({apiPath: "/currencies/" + this.state.defaultCurrency}, this.drawCurrencyGraph);
-    window.appComponent = this;
 
-    /*let selected = document.getElementById("currency-select");
-    var notes = null;
-    for (var i = 0; i < doc.childNodes.length; i++) {
-        if (doc.childNodes[i].className == "4") {
-          notes = doc.childNodes[i];
-          break;
-        }        
+    this.initEvents();
+    this.initWebSocket();
+
+    window.appComponent = this;
+  }
+
+  initWebSocket(){
+    var url = "ws://localhost:8082/ws";
+    var ws = new WebSocket(url);
+      
+    var send = function(data){
+      console.log(data);
+      ws.send(data)
     }
-    selected.childNodes[i].className*/
+
+    ws.onmessage = function(msg){
+      var d = msg.data;
+      console.log(JSON.parse(d));
+    }
+
+    ws.onopen = function(){
+      setInterval( 
+        function(){ send("ping") }
+      , 5000 )
+    }
+  }
+
+  initEvents(){
+    window.onload = function(){
+      window.addEventListener("mouseup", (evt) => {
+      var selectElmt    = document.getElementById('currency-select');
+      let list          = document.getElementById("currencies-list")
+      let targetElement = evt.target;  
+
+        do {
+            if (targetElement === selectElmt || targetElement === list){
+                return;
+            }
+            targetElement = targetElement.parentNode;
+        } while (targetElement);
+        list.style.display = "none";
+      });
+    };
   }
 
   loadGraph(startTime, endTime){
@@ -56,10 +90,8 @@ class App extends Component {
     
     let currenciesList = data.results;
     let nbCurrencyToDisplay = 50;
-    let selectCurrencyComponent = document.getElementById("select-currency-display");
-    let tmpElement, tmpTextNode, tmpImageNode, tmpValueNode, tmpImageContainer, tmpValueContainer;
+    let tmpElement, tmpImageNode, tmpValueNode, tmpImageContainer, tmpValueContainer;
     let currenciesListDiv = document.getElementById("currencies-list");
-    let currentCurrency;
     let that = this;
 
     for(let i = 0; i < nbCurrencyToDisplay; i++){
@@ -91,8 +123,8 @@ class App extends Component {
 
     Array.from(currencyElementArray).forEach(function(element) {
       element.addEventListener('click', (event) => {
-        //let currencySelected = event.currentTarget.getAttribute("value");
-        that.selectCurrency(event.currentTarget.getAttribute("value"));
+        let currencySelected = event.currentTarget.getAttribute("value");
+        that.selectCurrency(currencySelected);
       });
     });
 
@@ -126,32 +158,27 @@ class App extends Component {
       this.sendRequest({apiPath: "/currencies/" + newCurrency.slug}, this.drawCurrencyGraph);
       this.setState({loadingGraph: true});
     }
-    //
   }
  
   drawCurrencyGraph = (data) => {
     let currencyToUSD = data.results.Price_usd;
-    let dataToDraw = [];
-    let sampling = function(d){
+    //let dataToDraw = [];
+    /*let sampling = function(d){
       if(d.length < 400) return d;
       
-    };
+    };*/
 
-    //var date = new Date(currencyToUSD[currencyToUSD.length - 1][0]);
-
-    for(var i = 0; i < currencyToUSD.length; i++){
+    /*for(var i = 0; i < currencyToUSD.length; i++){
       dataToDraw.push(currencyToUSD[i]);
-    }
+    }*/
 
     this.setState({loadingGraph: false});
-    let startTime = new Date();
-    Graph.drawData("canvas", this.formatData(dataToDraw));
-    //console.log();
 
-    let endTime = new Date();
-    let timeDiff = endTime - startTime; //in ms
-    var seconds = Math.round(timeDiff);
-    console.log(seconds + " mseconds");   
+    let formattedData = this.formatData(currencyToUSD);
+    let graphOrigin   = {x: 30, y: 40};
+    let graphstyle    = {fillColor: "#397ee448"};
+    let graphCurrency = new Graph("canvas", formattedData, graphOrigin, graphstyle);
+    graphCurrency.init();
   }
 
   getCurrencyImage = (imageID) => {
@@ -176,7 +203,7 @@ class App extends Component {
       <div id="select-container">
         <div id="currency-select">
           <div className="currency-image-container">
-            <img className="currency-image" src={this.getCurrencyImage(this.state.currentCurrency.id)}/>
+            <img className="currency-image" alt={"Currency's image " + this.state.currentCurrency.id} src={this.getCurrencyImage(this.state.currentCurrency.id)}/>
           </div>
           <div className="currency-value-container">
             <span>{this.state.currentCurrency.name}</span>
@@ -194,15 +221,15 @@ class App extends Component {
     console.log(this.state.loadingGraph);
     if(this.state.loadingGraph){
       return(
-        <img src={logo} className="App-logo" alt="logo" />
+        <div className="loading-container">
+          <img src={loading} className="App-logo" alt="logo" />
+        </div>
       )
     }else{
       return(
-        <div id="canvas-container">
+      <div id="canvas-container">
         <canvas id="canvas" width="800" height="500"></canvas>
-        <div id="popup">
-        Hello
-        </div>
+        <div id="popup"></div>
         <div id="vertical-line"></div>
         <div id="horizontal-line"></div>
         <div id="graph-dot"></div>
@@ -227,21 +254,6 @@ class App extends Component {
             </div>
           </div>
         </div>
-         
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
       </div>
     );
   }

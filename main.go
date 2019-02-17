@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 const APIPath = "https://s2.coinmarketcap.com/generated/"
@@ -30,7 +33,7 @@ type CryptoCurrencyStats struct {
 }
 
 type CryptoCurrencyInfo struct {
-	Id     int	  `json:"id"`
+	Id     int    `json:"id"`
 	Name   string `json:"name"`
 	Rank   int    `json:"rank"`
 	Slug   string `json:"slug"`
@@ -55,6 +58,26 @@ type ResponseObjectGlobalStats struct {
 	Results GlobalSettings `json:"results"`
 }
 
+type NewPoint struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+type Message struct {
+	Info    string   `json:"info"`
+	Message NewPoint `json:"message"`
+}
+type Client struct {
+	Connected   bool
+	LastRequest string
+}
+
+var upgrader = websocket.Upgrader{}
+var wsupgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+var clients = make(map[*websocket.Conn]Client) // connected clients
 var router *gin.Engine
 
 func main() {
@@ -66,10 +89,23 @@ func main() {
 	router.Use(static.Serve("/", static.LocalFile("./views/public", true)))
 	initializeRoutes()
 
-	/*router.GET("/ws", func(c *gin.Context) {
-		handler := websocket.Handler(EchoServer)
-		handler.ServeHTTP(c.Writer, c.Req)
-	})*/
+	/*
+			if req.Header.Get("Origin") != "http://"+req.Host {
+			http.Error(w, "Origin not allowed", http.StatusForbidden)
+			return
+		}
+	*/
+	wsupgrader.CheckOrigin = func(r *http.Request) bool {
+		if r.Header.Get("Origin") != "http://"+r.Host {
+			//http.Error(w, "Origin not allowed", http.StatusForbidden)
+			return true
+		}
+		return true
+	}
+	// Configure websocket route
+	router.GET("/ws", func(c *gin.Context) {
+		wshandler(c.Writer, c.Request)
+	})
 
 	// Start and run the server
 	router.Run(":8082")
@@ -81,6 +117,49 @@ func main() {
 	//Get Currencies List
 	//v := getCurrenciesList(currenciesListPath)
 	//fmt.Print(v)
+}
+
+func wshandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := wsupgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Println("Failed to set websocket upgrade: %+v", err)
+		return
+	}
+
+	//fmt.Print("Client", len(clients), "\n")
+	clients[conn] = Client{true, strconv.Itoa(len(clients))}
+
+	for {
+		_, msg, err := conn.ReadMessage()
+		fmt.Print("Socket msg: ", clients[conn], msg, "\n")
+		if err != nil {
+			fmt.Printf("error: %v", err)
+			//clients[conn] = Client{false, clients[conn].LastRequest}
+			delete(clients, conn)
+			break
+		}
+
+		var newMessage = new(Message)
+		newMessage.Info = "ok"
+		var nPoint = new(NewPoint)
+		nPoint.X = 1
+		nPoint.Y = 15
+		newMessage.Message = *nPoint
+		conn.WriteJSON(newMessage)
+
+		for client := range clients {
+			err := client.WriteJSON("HELLO" + strconv.Itoa(len(clients)))
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
+}
+
+func EchoServer() {
+	fmt.Print("ECHO")
 }
 
 func initializeRoutes() {
