@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	t "./types"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/gin-gonic/contrib/static"
@@ -21,7 +22,7 @@ const globalStatsPath = APIPath + "stats/global.json"
 const currenciesListPath = APIPath + "search/quick_search.json"
 const cryptoCurrencyPath = "https://graphs2.coinmarketcap.com/currencies/"
 
-type GlobalSettings struct {
+/*type GlobalSettings struct {
 	Active_cryptocurrencies                  int
 	Active_markets                           int
 	Bitcoin_percentage_of_market_cap         float64
@@ -34,9 +35,9 @@ type CryptoCurrencyStats struct {
 	Price_btc                      [][]float64
 	Price_usd                      [][]float64
 	Volume_usd                     [][]float64
-}
+}*/
 
-type CryptoCurrencyInfo struct {
+/*type CryptoCurrencyInfo struct {
 	Id     int    `json:"id"`
 	Name   string `json:"name"`
 	Rank   int    `json:"rank"`
@@ -45,21 +46,21 @@ type CryptoCurrencyInfo struct {
 }
 
 type ResponseObject struct {
-	Found   bool                `json:"found"`
-	Message string              `json:"message"`
-	Results CryptoCurrencyStats `json:"results"`
+	Found   bool                  `json:"found"`
+	Message string                `json:"message"`
+	Results t.CryptoCurrencyStats `json:"results"`
 }
 
 type ResponseObjectCurrenciesList struct {
-	Found   bool                 `json:"found"`
-	Message string               `json:"message"`
-	Results []CryptoCurrencyInfo `json:"results"`
+	Found   bool                   `json:"found"`
+	Message string                 `json:"message"`
+	Results []t.CryptoCurrencyInfo `json:"results"`
 }
 
 type ResponseObjectGlobalStats struct {
-	Found   bool           `json:"found"`
-	Message string         `json:"message"`
-	Results GlobalSettings `json:"results"`
+	Found   bool             `json:"found"`
+	Message string           `json:"message"`
+	Results t.GlobalSettings `json:"results"`
 }
 
 type NewPoint struct {
@@ -74,7 +75,7 @@ type Message struct {
 type Client struct {
 	Connected   bool
 	LastRequest string
-}
+}*/
 
 type Conf struct {
 	Currency string `json:"currency"`
@@ -86,7 +87,7 @@ var wsupgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
-var clients = make(map[*websocket.Conn]Client) // connected clients
+var clients = make(map[*websocket.Conn]t.Client) // connected clients
 var router *gin.Engine
 
 func main() {
@@ -156,7 +157,7 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//fmt.Print("Client", len(clients), "\n")
-	clients[conn] = Client{true, strconv.Itoa(len(clients))}
+	clients[conn] = t.Client{true, strconv.Itoa(len(clients))}
 
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -168,9 +169,9 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		var newMessage = new(Message)
+		var newMessage = new(t.Message)
 		newMessage.Info = "ok"
-		var nPoint = new(NewPoint)
+		var nPoint = new(t.NewPoint)
 		nPoint.X = 1
 		nPoint.Y = 15
 		newMessage.Message = *nPoint
@@ -206,7 +207,7 @@ func initializeRoutes() {
 }
 
 func GetGlobalStatsHandler(c *gin.Context) {
-	var response ResponseObjectGlobalStats
+	var response t.ResponseObjectGlobalStats
 	//Get Currency Stats
 	globalStats := getGlobalStats(globalStatsPath)
 
@@ -223,7 +224,7 @@ func GetGlobalStatsHandler(c *gin.Context) {
 }
 
 func GetCurrenciesListHandler(c *gin.Context) {
-	var response ResponseObjectCurrenciesList
+	var response t.ResponseObjectCurrenciesList
 	//Get Currency Stats
 	currencyList := getCurrenciesList(currenciesListPath)
 
@@ -249,7 +250,7 @@ func GetCurrencyHandler(c *gin.Context) {
 		url = url + "/" + startTime + "/" + endTime
 	}
 	fmt.Print("Start: ", url)
-	var response ResponseObject
+	var response t.ResponseObject
 	//Get Currency Stats
 	currencyStats := getCurrencyStats(url)
 
@@ -282,9 +283,9 @@ func middleware(c *gin.Context) {
 	c.Next()
 }
 
-func getCurrencyStats(url string) CryptoCurrencyStats {
+func getCurrencyStats(url string) t.CryptoCurrencyStats {
 	fmt.Println("Send Request")
-	target := new(CryptoCurrencyStats)
+	target := new(t.CryptoCurrencyStats)
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println(err)
@@ -296,9 +297,9 @@ func getCurrencyStats(url string) CryptoCurrencyStats {
 	return *target
 }
 
-func getCurrenciesList(url string) []CryptoCurrencyInfo {
+func getCurrenciesList(url string) []t.CryptoCurrencyInfo {
 	fmt.Println("Send Request", url)
-	target := new([]CryptoCurrencyInfo)
+	target := new([]t.CryptoCurrencyInfo)
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println(err)
@@ -309,9 +310,9 @@ func getCurrenciesList(url string) []CryptoCurrencyInfo {
 	return *target
 }
 
-func getGlobalStats(url string) GlobalSettings {
+func getGlobalStats(url string) t.GlobalSettings {
 	fmt.Println("Send Request")
-	target := new(GlobalSettings)
+	target := new(t.GlobalSettings)
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println(err)
