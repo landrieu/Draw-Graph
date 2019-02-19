@@ -12,7 +12,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "clear:babel-cache": "rimraf -rf ./node_modules/.cache/babel-loader/*"
   },
   "eslintConfig": {
     "extends": "react-app"

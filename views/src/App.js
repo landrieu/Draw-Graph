@@ -28,7 +28,8 @@ class App extends Component {
   }
 
   initWebSocket(){
-    var url = "ws://localhost:8082/ws";
+    //var url = "ws://localhost:8082/ws";
+    var url = "ws://10.5.95.50:8082/ws"
     var ws = new WebSocket(url);
       
     var send = function(data){

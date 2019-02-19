@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	t "./types"
 	yaml "gopkg.in/yaml.v2"
@@ -94,6 +96,7 @@ func main() {
 	// Set the router as the default one shipped with Gin
 	router = gin.Default()
 	router.Use(middleware)
+	//router.Use(MustLocal)
 
 	// Serve frontend static files
 	router.Use(static.Serve("/", static.LocalFile("./views/public", true)))
@@ -272,15 +275,33 @@ func NoRouteHandler(c *gin.Context) {
 }
 
 func middleware(c *gin.Context) {
+
 	if c.Request.Method == "OPTIONS" || c.Request.Method == "GET" || c.Request.Method == "POST" {
 		c.Header("Allow", "POST, GET, OPTIONS")
-		c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
+		//c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
 		c.Header("Access-Control-Allow-Headers", "origin, content-type, accept")
 		c.Header("Content-Type", "application/json")
 		c.Status(http.StatusOK)
 	}
 
+	if strings.HasPrefix(c.Request.RemoteAddr, "127.0.0.1") || strings.HasPrefix(c.Request.RemoteAddr, "[::1]") || strings.HasPrefix(c.Request.RemoteAddr, "10.5.95.50") {
+		c.Header("Access-Control-Allow-Origin", "*")
+	}
+
 	c.Next()
+}
+
+// MustLocal enforces that a request must come only from the localhost.
+func MustLocal(c *gin.Context) {
+
+	if strings.HasPrefix(c.Request.RemoteAddr, "127.0.0.1") ||
+		strings.HasPrefix(c.Request.RemoteAddr, "[::1]") {
+		return
+	}
+	c.Error(fmt.Errorf("request to expvars from remote host: %s", c.Request.RemoteAddr)).
+		SetType(gin.ErrorTypePrivate)
+	c.AbortWithError(http.StatusForbidden, errors.New("expvar access is forbidden"))
+
 }
 
 func getCurrencyStats(url string) t.CryptoCurrencyStats {

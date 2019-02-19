@@ -32,6 +32,8 @@ var Graph = function(graphName, data = [], origin = {}, style, options = {}) {
     this.dragPosition = defaultParameters.dragPosition;
     this.traceDots    = options.traceDots || false;
     this.showPopup    = options.showPopup || false;
+    this.fillGraph    = options.fillGraph || true;
+    //this.showHorizLine
     this.elementsID   = options.elementsID || defaultParameters.elementsID;
     this.points       = [];
     this.position     = {};
@@ -87,13 +89,40 @@ Graph.prototype.clear = function(){
 }
 
 Graph.prototype.draw = function(){
-     
+    this.formatData();
+
+    this.traceData();
+
+    this.fillSpaceUnderGraph()
+
+    this.traceAxis();
+}
+
+Graph.prototype.fillSpaceUnderGraph = function(){
+
+    var cvs = document.getElementById(this.name);
+
+    if (!cvs.getContext) return;
+
+    var ctx = cvs.getContext('2d');
+
+    if(this.fillGraph){
+        /*Fill space under graph*/
+        ctx.lineTo(this.origin.x + this.size.width,  this.size.width);
+        ctx.lineTo(this.origin.x + this.size.width,  this.size.height - this.origin.y);
+        ctx.lineTo(this.origin.x, this.size.height - this.origin.y);
+        ctx.fillStyle = this.style.fillColor;
+        ctx.fill();
+        ctx.closePath();
+    }
+}
+
+Graph.prototype.traceData = function(){
+
     var cvs = document.getElementById(this.name);
     var stepPosition = this.origin.x;
     var stepSize = (this.size.width - this.origin.x) / (this.data.length - 1);
     var ctx;
-    
-    this.formatData();
 
     if (cvs.getContext) {
 
@@ -112,44 +141,43 @@ Graph.prototype.draw = function(){
             }
             
             this.points.push({
+                ...this.data[i],
                 left:    stepPosition,
                 top:     this.size.height - this.data[i].positionY,
                 height:  1,
                 width:   1,
-                value:   this.data[i].value,
-                date:    this.data[i].date,
-                rawDate: this.data[i].rawDate
             });
             stepPosition += stepSize;
         }
         
         ctx.strokeStyle = this.style.strokeColor;
         ctx.stroke();
-        
-        /*Fill space under graph*/
-        ctx.lineTo(stepPosition,  this.size.width);
-        ctx.lineTo(stepPosition,  this.size.height - this.origin.y);
-        ctx.lineTo(this.origin.x, this.size.height - this.origin.y);
-        ctx.fillStyle = this.style.fillColor;
-        ctx.fill();
-        ctx.closePath();
-        
-        /*Y axis*/
-        ctx.beginPath();
-        ctx.moveTo(this.origin.x, 0);
-        ctx.lineTo(this.origin.x, this.size.height - this.origin.y);
-        ctx.strokeStyle = this.style.axisColor;
-        ctx.stroke();
-        ctx.closePath();
-        
-        /*X axis*/
-        ctx.beginPath();
-        ctx.moveTo(this.origin.x ,  this.size.height - this.origin.y);
-        ctx.lineTo(this.size.width, this.size.height - this.origin.y);
-        ctx.strokeStyle = this.style.axisColor;
-        ctx.stroke();
-        ctx.closePath();
     }
+}
+
+Graph.prototype.traceAxis = function(){
+
+    var cvs = document.getElementById(this.name);
+
+    if (!cvs.getContext) return;
+
+    var ctx = cvs.getContext('2d');
+
+    /*Y axis*/
+    ctx.beginPath();
+    ctx.moveTo(this.origin.x, 0);
+    ctx.lineTo(this.origin.x, this.size.height - this.origin.y);
+    ctx.strokeStyle = this.style.axisColor;
+    ctx.stroke();
+    ctx.closePath();
+    
+    /*X axis*/
+    ctx.beginPath();
+    ctx.moveTo(this.origin.x ,  this.size.height - this.origin.y);
+    ctx.lineTo(this.size.width, this.size.height - this.origin.y);
+    ctx.strokeStyle = this.style.axisColor;
+    ctx.stroke();
+    ctx.closePath();
 }
 
 Graph.prototype.setProperties = function(){
@@ -275,31 +303,42 @@ Graph.prototype.handleMousemove = function(e){
 
         if(!found) return;
         
-        if(this.showPopup){
-            let div = document.getElementById(this.elementsID.popup);
-            div.style.left = (e.clientX - 80) + 'px';
-            div.style.top  = (this.position.y + point.top) -30 + 'px';
-            div.innerHTML  = point.value; 
-            div.style.display = found ? "block" : "none";
-        }
-
-        var line = document.getElementById(this.elementsID.graphVerticalLine);
-        line.style.left     = (point.left + this.position.x) +'px';
-        line.style.top      = (this.position.y + point.top) +'px';
-        line.style.height   = (this.size.height - (point.top)) - this.origin.y +'px';
-
-        var horizLine = document.getElementById(this.elementsID.graphHorizontalLine);
-        horizLine.style.left     = this.position.x + this.origin.x +'px';
-        horizLine.style.top      = (this.position.y + point.top) +'px';
-        horizLine.style.width    = (point.left - this.origin.x)+'px';
-
-        var dot = document.getElementById(this.elementsID.graphDot);
-        dot.style.top       = (this.position.y + point.top - (dot.clientHeight / 2)) +'px';
-        dot.style.left      = (point.left + this.position.x) - (dot.clientWidth / 2) +'px';
-
-        document.getElementById(this.elementsID.graphY).innerHTML = point.value;
-        document.getElementById(this.elementsID.graphX).innerHTML = point.date;
+        this.traceGraphElemets(point, e, found);
     }   
+}
+
+Graph.prototype.traceGraphElemets = function(point, e, found){
+
+    //Display popup
+    if(this.showPopup){
+        let div = document.getElementById(this.elementsID.popup);
+        div.style.left = (e.clientX - 80) + 'px';
+        div.style.top  = (this.position.y + point.top) -30 + 'px';
+        div.innerHTML  = point.value; 
+        div.style.display = found ? "block" : "none";
+    }
+
+    //Trace vertical line
+    var line = document.getElementById(this.elementsID.graphVerticalLine);
+    line.style.left     = (point.left + this.position.x) +'px';
+    line.style.top      = (this.position.y + point.top) +'px';
+    line.style.height   = (this.size.height - (point.top)) - this.origin.y +'px';
+
+    //Trace Horizontal line
+    var horizLine = document.getElementById(this.elementsID.graphHorizontalLine);
+    horizLine.style.left     = this.position.x + this.origin.x + 'px';
+    horizLine.style.top      = (this.position.y + point.top)   + 'px';
+    horizLine.style.width    = (point.left - this.origin.x)    + 'px';
+
+    //Trace dot
+    var dot = document.getElementById(this.elementsID.graphDot);
+    dot.style.top       = (this.position.y + point.top   - (dot.clientHeight / 2)) +'px';
+    dot.style.left      = (point.left + this.position.x) - (dot.clientWidth / 2)   +'px';
+
+    //Display info on the left pane
+    document.getElementById(this.elementsID.graphY).innerHTML = point.value;
+    document.getElementById(this.elementsID.graphX).innerHTML = point.date;
+
 }
 
 function formatEpochTime(date){
