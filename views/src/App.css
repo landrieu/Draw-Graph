@@ -82,8 +82,21 @@
   position: absolute;
   width: 0;
 }
+
+#select-currency-back-button{
+  display: inline-flex;
+  width: 45%;
+  /* margin: 10px 9%; */
+  margin: 10px 45% 10px 10%;
+  justify-content: space-between;
+}
+
+#select-container{
+  display: inline-flex;
+  width: 100%;
+}
 .select-currency{
-  margin: 30px 10%;
+  /*margin: 30px 10%;*/
 }
 #select-currency-display{
   border-radius: 3px;

@@ -13,7 +13,8 @@ class App extends Component {
     currencyStats: [],
     defaultCurrency: "bitcoin",
     currentCurrency: {},
-    loadingGraph: true 
+    loadingGraph: true,
+    previousGraph: [],
   } 
 
   componentDidMount(){
@@ -199,6 +200,13 @@ class App extends Component {
     
   }
 
+  displayPreviousGraph = () => {
+    if(this.previousGraph.length > 0){
+      let previous = this.previousGraph[this.previousGraph.length - 1];
+      this.loadGraph(previous.startTime, previous.endTime);
+    }
+  }
+
   renderSelectCurrency() {
     return(
       <div id="select-container">
@@ -243,8 +251,13 @@ class App extends Component {
   render() {  
     return (  
       <div className="App">
-        <div className="select-currency">
-          {this.renderSelectCurrency()}
+        <div id="select-currency-back-button">
+          <div className="select-currency">
+            {this.renderSelectCurrency()}
+          </div>
+          <div id="back-previous">
+            <button type="button" onClick={this.displayPreviousGraph}>Click Me!</button>
+          </div>
         </div>
         <div className="graph-container">
           {this.renderGraph()}
@@ -252,6 +265,10 @@ class App extends Component {
             <div className="graph-date-value">
               <div className="graph-date">Date: <span id="graph-date-text"></span></div>
               <div className="graph-value">Value: <span id="graph-value-text"></span></div>
+              
+              <div className="graph-date">Date from: <span id="graph-from-date-text"></span></div>
+              <div className="graph-value">Variation (%): <span id="graph-variation-pct-text"></span></div>
+              <div className="graph-value">Variation (pts): <span id="graph-variation-pts-text"></span></div>
             </div>
           </div>
         </div>
