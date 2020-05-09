@@ -19,14 +19,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const APIPath = "https://s2.coinmarketcap.com/generated/"
-const globalStatsPath = APIPath + "stats/global.json"
-const currenciesListPath = APIPath + "search/quick_search.json"
-const cryptoCurrencyPath = "https://graphs2.coinmarketcap.com/currencies/"
-
 type Conf struct {
-	Currency string `json:"currency"`
-	Time     int64  `json:"time"`
+	Currency 	string `json:"currency"`
+	Time     	int64  `json:"time"`
+	APIPath 	string `json:"apipath"`
+	CryptoCurrencyPath string `json:"cryptocurrencypath"`
+	GlobalStatsPath string `json:"globalstatspath"`
+	CurrenciesListPath string `json:"currencieslistpath"`
 }
 
 var upgrader = websocket.Upgrader{}
@@ -36,8 +35,12 @@ var wsupgrader = websocket.Upgrader{
 }
 var clients = make(map[*websocket.Conn]t.Client) // connected clients
 var router *gin.Engine
+var conf Conf
 
 func main() {
+	//Set varaibles
+	conf.getConf()
+	log.Print(conf)
 	// Set the router as the default one shipped with Gin
 	router = gin.Default()
 	router.Use(middleware)
@@ -47,12 +50,6 @@ func main() {
 	router.Use(static.Serve("/", static.LocalFile("./views/public", true)))
 	initializeRoutes()
 
-	/*
-			if req.Header.Get("Origin") != "http://"+req.Host {
-			http.Error(w, "Origin not allowed", http.StatusForbidden)
-			return
-		}
-	*/
 	wsupgrader.CheckOrigin = func(r *http.Request) bool {
 		if r.Header.Get("Origin") != "http://"+r.Host {
 			//http.Error(w, "Origin not allowed", http.StatusForbidden)
@@ -60,15 +57,11 @@ func main() {
 		}
 		return true
 	}
+
 	// Configure websocket route
 	router.GET("/ws", func(c *gin.Context) {
 		wshandler(c.Writer, c.Request)
 	})
-
-	var c Conf
-	c.getConf()
-
-	fmt.Println(c)
 
 	// Start and run the server
 	router.Run(":8082")
@@ -104,7 +97,6 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//fmt.Print("Client", len(clients), "\n")
 	clients[conn] = t.Client{true, strconv.Itoa(len(clients))}
 
 	for {
@@ -136,10 +128,6 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func EchoServer() {
-	fmt.Print("ECHO")
-}
-
 func initializeRoutes() {
 	// Setup route group for the API
 	api := router.Group("/api")
@@ -157,7 +145,7 @@ func initializeRoutes() {
 func GetGlobalStatsHandler(c *gin.Context) {
 	var response t.ResponseObjectGlobalStats
 	//Get Currency Stats
-	globalStats := getGlobalStats(globalStatsPath)
+	globalStats := getGlobalStats(conf.APIPath + conf.GlobalStatsPath)
 
 	if globalStats.Active_cryptocurrencies != 0 {
 		response.Found = true
@@ -174,7 +162,7 @@ func GetGlobalStatsHandler(c *gin.Context) {
 func GetCurrenciesListHandler(c *gin.Context) {
 	var response t.ResponseObjectCurrenciesList
 	//Get Currency Stats
-	currencyList := getCurrenciesList(currenciesListPath)
+	currencyList := getCurrenciesList(conf.APIPath + conf.CurrenciesListPath)
 
 	if len(currencyList) > 0 {
 		response.Found = true
@@ -188,28 +176,42 @@ func GetCurrenciesListHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func SetCurrencyParameters(start string, end string, currency string) string{
+	var param  string = ""
+	if start != "" && end != "" {
+		param = "&time_start=" + start
+		param = param + "&time_end=" + end
+	}
+
+	if currency != "" {
+		param = param + "&convert=USD," + currency
+	}
+
+	return param
+}
+
 func GetCurrencyHandler(c *gin.Context) {
 	var currency = c.Param("currency")
 	startTime := c.Query("startTime")
 	endTime := c.Query("endTime")
 
-	var url string = cryptoCurrencyPath + currency
-	if startTime != "" && endTime != "" {
-		url = url + "/" + startTime + "/" + endTime
-	}
+	var url string = conf.CryptoCurrencyPath
+	var param string = SetCurrencyParameters(startTime, endTime, currency)
+	url = url + param
+
 	fmt.Print("Start: ", url)
 	var response t.ResponseObject
+
 	//Get Currency Stats
 	currencyStats := getCurrencyStats(url)
-
-	if len(currencyStats.Market_cap_by_available_supply) > 0 {
+	if currencyStats.Status.Error_code == 0 {
 		response.Found = true
-		response.Results = currencyStats
+		response.Results = currencyStats.Data
 	} else {
 		response.Found = false
 		response.Message = "No currency found"
 	}
-	fmt.Print("Length: ", len(currencyStats.Price_usd))
+
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, response)
 }
@@ -250,7 +252,7 @@ func MustLocal(c *gin.Context) {
 }
 
 func getCurrencyStats(url string) t.CryptoCurrencyStats {
-	fmt.Println("Send Request")
+	fmt.Println("Send Request", url)
 	target := new(t.CryptoCurrencyStats)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -259,7 +261,6 @@ func getCurrencyStats(url string) t.CryptoCurrencyStats {
 	defer resp.Body.Close()
 
 	json.NewDecoder(resp.Body).Decode(target)
-	fmt.Print(resp.Body)
 	return *target
 }
 
@@ -277,7 +278,7 @@ func getCurrenciesList(url string) []t.CryptoCurrencyInfo {
 }
 
 func getGlobalStats(url string) t.GlobalSettings {
-	fmt.Println("Send Request")
+	fmt.Println("Send Request", url)
 	target := new(t.GlobalSettings)
 	resp, err := http.Get(url)
 	if err != nil {

@@ -1,2 +1,6 @@
 currency: bitcoin
 time: 5000000
+cryptocurrencypath: https://web-api.coinmarketcap.com/v1.1/cryptocurrency/quotes/historical?format=chart_crypto_details&id=1&interval=1d
+apipath: https://s2.coinmarketcap.com/generated/
+globalstatspath: stats/global.json
+currencieslistpath: search/quick_search.json

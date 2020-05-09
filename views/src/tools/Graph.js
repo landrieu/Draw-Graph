@@ -1,4 +1,3 @@
-
 var defaultParameters = {
     origin: {
         x: 60,
@@ -14,8 +13,11 @@ var defaultParameters = {
         graphHorizontalLine: "horizontal-line",
         graphDot:            "graph-dot",
         graphSelectedArea:   "graph-select-area",
-        graphY:              "graph-date-text",
-        graphX:              "graph-value-text",
+        graphY:              "graph-value-text",
+        graphX:              "graph-date-text",
+        graphXFrom:          "graph-from-date-text",
+        variationPct:        "graph-variation-pct-text",
+        variationPts:        "graph-variation-pts-text",
         popup:               "popup"
     },
     dragPosition:{
@@ -207,6 +209,11 @@ Graph.prototype.initEvents = function(){
         this.handleMouseUp(event);
     });
 
+    let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
+    selectedArea.addEventListener("mousemove", (event) => {
+        this.handleMousemove(event);
+    });
+
     let verticalLine = document.getElementById(this.elementsID.graphVerticalLine);
     verticalLine.addEventListener("mousedown", (event) => {
         this.handleMouseDown(event);
@@ -221,7 +228,12 @@ Graph.prototype.initEvents = function(){
 }
 
 Graph.prototype.updateGraph = function(startDrag, endDrag){
-    if(startDrag > endDrag) return;
+    if(startDrag > endDrag){
+        let tempDrag = startDrag;
+        startDrag    = endDrag;
+        endDrag      = tempDrag;
+    }
+
     let startDate, endDate;
     startDrag = startDrag - this.position.x;
     endDrag   = endDrag - this.position.x;
@@ -239,6 +251,11 @@ Graph.prototype.updateGraph = function(startDrag, endDrag){
     let deltaDate  = endDate - startDate;
     let dayInEpoch = 86400000;
     if(deltaDate < dayInEpoch) return;
+
+    let startDateFormatted = new Date(startDate);
+    let endDateFormatted = new Date(endDate);
+    startDate = startDateFormatted.getFullYear() + "-" + (startDateFormatted.getMonth() + 1) + "-" + startDateFormatted.getDate();
+    endDate   = endDateFormatted.getFullYear() + "-" + (endDateFormatted.getMonth() + 1) + "-" + endDateFormatted.getDate();
 
     window.appComponent.loadGraph(startDate, endDate);
 }
@@ -261,18 +278,27 @@ Graph.prototype.handleMouseUp = function(event, fromDocument){
         this.updateGraph(this.dragPosition.x, event.clientX);
     }
     
-    selectedArea.style.width  = '0px';
+    if(selectedArea){
+        selectedArea.style.width  = '0px';
+    }
+    
     this.dragPosition.x = undefined;
+    document.getElementById(this.elementsID.graphXFrom).innerHTML    = "";
+    document.getElementById(this.elementsID.variationPct).innerHTML  = "";
+    document.getElementById(this.elementsID.variationPts).innerHTML  = "";
 }
 
 Graph.prototype.handleMouseDown = function(event){
     event.preventDefault();
     event.stopPropagation();
+
     let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
     selectedArea.style.height = (this.size.height - this.origin.y) + 'px';
     selectedArea.style.top    = (this.position.y) + 'px';
     selectedArea.style.left   = event.clientX + 'px';
     this.dragPosition.x       = event.clientX;
+
+    document.getElementById(this.elementsID.graphXFrom).innerHTML = document.getElementById(this.elementsID.graphX).innerHTML;
 }
 
 Graph.prototype.handleMousemove = function(e){
@@ -282,62 +308,86 @@ Graph.prototype.handleMousemove = function(e){
     this.setProperties();
 
     var x = parseInt(e.clientX - this.position.x);
-    var found = false;
     let point;
+
     if(this.dragPosition.x){
         let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
         let areaWidth = e.clientX - this.dragPosition.x;
+
+        if(areaWidth < 0){
+            areaWidth = Math.abs(areaWidth);
+            selectedArea.style.left   = (this.dragPosition.x - areaWidth) + 'px';
+        }else{
+            selectedArea.style.left   = this.dragPosition.x + 'px';
+        }
+
         selectedArea.style.width = areaWidth + 'px';
-        //return;
     }
+
+    var fromPoint = null;
+    var toPoint   = null;
 
     if(this.points){
         for(let i = 1; i < this.points.length; i++){
             point = this.points[i];
 
             if(this.points[i - 1].left < x && this.points[i].left > x){
-                found = true;
-                break;
+                toPoint = point;
             }
+            if(this.points[i - 1].left < (this.dragPosition.x - this.position.x) && this.points[i].left > (this.dragPosition.x - this.position.x)){
+                fromPoint = point;
+            }
+            if(fromPoint && toPoint) break;
         }
 
-        if(!found) return;
+        if(!toPoint) return;
         
-        this.traceGraphElemets(point, e, found);
+        this.traceGraphElemets(toPoint, fromPoint, e);
     }   
 }
 
-Graph.prototype.traceGraphElemets = function(point, e, found){
+Graph.prototype.traceGraphElemets = function(toPoint, fromPoint, e){
 
     //Display popup
     if(this.showPopup){
         let div = document.getElementById(this.elementsID.popup);
         div.style.left = (e.clientX - 80) + 'px';
-        div.style.top  = (this.position.y + point.top) -30 + 'px';
-        div.innerHTML  = point.value; 
-        div.style.display = found ? "block" : "none";
+        div.style.top  = (this.position.y + toPoint.top) -30 + 'px';
+        div.innerHTML  = toPoint.value; 
+        div.style.display = toPoint ? "block" : "none";
     }
 
     //Trace vertical line
     var line = document.getElementById(this.elementsID.graphVerticalLine);
-    line.style.left     = (point.left + this.position.x) +'px';
-    line.style.top      = (this.position.y + point.top) +'px';
-    line.style.height   = (this.size.height - (point.top)) - this.origin.y +'px';
+    line.style.left     = (toPoint.left + this.position.x) +'px';
+    line.style.top      = (this.position.y + toPoint.top) +'px';
+    line.style.height   = (this.size.height - (toPoint.top)) - this.origin.y +'px';
 
     //Trace Horizontal line
     var horizLine = document.getElementById(this.elementsID.graphHorizontalLine);
     horizLine.style.left     = this.position.x + this.origin.x + 'px';
-    horizLine.style.top      = (this.position.y + point.top)   + 'px';
-    horizLine.style.width    = (point.left - this.origin.x)    + 'px';
+    horizLine.style.top      = (this.position.y + toPoint.top)   + 'px';
+    horizLine.style.width    = (toPoint.left - this.origin.x)    + 'px';
 
     //Trace dot
     var dot = document.getElementById(this.elementsID.graphDot);
-    dot.style.top       = (this.position.y + point.top   - (dot.clientHeight / 2)) +'px';
-    dot.style.left      = (point.left + this.position.x) - (dot.clientWidth / 2)   +'px';
+    dot.style.top       = (this.position.y + toPoint.top   - (dot.clientHeight / 2)) +'px';
+    dot.style.left      = (toPoint.left + this.position.x) - (dot.clientWidth / 2)   +'px';
 
     //Display info on the left pane
-    document.getElementById(this.elementsID.graphY).innerHTML = point.value;
-    document.getElementById(this.elementsID.graphX).innerHTML = point.date;
+    document.getElementById(this.elementsID.graphY).innerHTML = toPoint.value;
+    document.getElementById(this.elementsID.graphX).innerHTML = toPoint.date;
+
+    if(fromPoint && toPoint){
+        var varianceValue   = toPoint.value - fromPoint.value;
+        var variancePercent = (varianceValue / fromPoint.value) * 100;
+        var isPositive      = varianceValue > 0;
+
+        document.getElementById(this.elementsID.variationPts).innerHTML = (isPositive ? '+' : '') + varianceValue;
+        document.getElementById(this.elementsID.variationPts).style.color = isPositive ? "green" : "red";
+        document.getElementById(this.elementsID.variationPct).innerHTML = (isPositive ? '+' : '') + variancePercent + ' %';
+        document.getElementById(this.elementsID.variationPct).style.color = isPositive ? "green" : "red";
+    }
 
 }
 
@@ -356,39 +406,3 @@ function formatEpochTime(date){
 }
 
 export default Graph;
-            
-        /* ctx.beginPath();
-            ctx.moveTo(0, 50);
-            ctx.lineTo(width + originXPosition, 50);
-            ctx.strokeStyle = "#a4a4a4c7";
-            ctx.stroke();
-            ctx.fillStyle = "#121212";
-            ctx.fillText('50', 0, 50);
-            ctx.closePath();
-            
-            ctx.beginPath();
-            ctx.moveTo(0, 25);
-            ctx.lineTo(width + originXPosition, 25);
-            ctx.strokeStyle = "#a4a4a4c7";
-            ctx.stroke();
-            ctx.fillStyle = "#121212";
-            ctx.fillText('75', 0, 25);
-            ctx.closePath();
-            
-            ctx.beginPath();
-            ctx.moveTo(0, 75);
-            ctx.lineTo(width + originXPosition, 75);
-            ctx.strokeStyle = "#a4a4a4c7";
-            ctx.stroke();
-            ctx.fillStyle = "#121212";
-            ctx.fillText('25', 0, 75);
-            ctx.closePath();*/
-            
-            /*ctx.beginPath();
-            ctx.moveTo(100, 0);
-            ctx.lineTo(width + originXPosition, height);
-            ctx.strokeStyle = "#a4a4a4c7";
-            ctx.stroke();
-            ctx.fillStyle = "#121212";
-            ctx.fillText('0', 0, 100);
-            ctx.closePath();*/

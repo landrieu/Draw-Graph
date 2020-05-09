@@ -9,12 +9,36 @@ type GlobalSettings struct {
 }
 
 type CryptoCurrencyStats struct {
-	Market_cap_by_available_supply [][]float64
+	/*Market_cap_by_available_supply [][]float64
 	Price_btc                      [][]float64
 	Price_usd                      [][]float64
-	Volume_usd                     [][]float64
+	Volume_usd                     [][]float64*/
+	Status	CryptoCurrencyStatus `json:"status"`
+	Data	interface{} `json:"data"`
 }
 
+type jsoninput []struct {
+    Data string `json:"data"`
+}
+
+type CryptoCurrencyData struct {
+	CryptoCurrencyDataDetails
+}
+
+type CryptoCurrencyDataDetails struct {
+	BTC []float64 `json:"BTC"`
+	USD []float64 `json:"USD"`
+}
+
+type CryptoCurrencyStatus struct {
+	//"timestamp": "2020-04-07T12:54:21.950Z",
+	//"elapsed": 62,
+	//"credit_count": 3,
+    //"notice": null
+	Error_code int `json:"error_code"`
+	Error_message string `json:"error_message"`
+}
+        
 type CryptoCurrencyInfo struct {
 	Id     int    `json:"id"`
 	Name   string `json:"name"`
@@ -26,7 +50,8 @@ type CryptoCurrencyInfo struct {
 type ResponseObject struct {
 	Found   bool                `json:"found"`
 	Message string              `json:"message"`
-	Results CryptoCurrencyStats `json:"results"`
+	Results interface{} `json:"results"`
+	//CryptoCurrencyStats `json:"results"`
 }
 
 type ResponseObjectCurrenciesList struct {
