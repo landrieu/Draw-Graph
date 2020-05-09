@@ -222,9 +222,9 @@ Graph.prototype.initEvents = function(){
         this.handleMouseUp(event);
     });
 
-    document.addEventListener("mouseup", (event) => {
+    /*document.addEventListener("mouseup", (event) => {
         this.handleMouseUp(event, true);
-    });
+    });*/
 }
 
 Graph.prototype.updateGraph = function(startDrag, endDrag){
@@ -264,8 +264,18 @@ Graph.prototype.handleMouseUp = function(event, fromDocument){
     event.preventDefault();
     event.stopPropagation();
     let selectedArea = document.getElementById(this.elementsID.graphSelectedArea);
+    console.log("Handle mouse up", fromDocument);
+    /*var originX = this.dragPosition.x;
+    var finalX  = event.clientX;
+    var tempX   = null;
 
-    if(fromDocument){
+    if(originX > finalX){
+        temp    = originX;
+        originX = finalX;
+        finalX  = tempX;
+    }*/
+
+    if(fromDocument && false){
         if(!this.dragPosition.x) return;
 
         let cvsBounding = document.getElementById(this.name).getBoundingClientRect();
