@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -64,7 +65,7 @@ func main() {
 	})
 
 	// Start and run the server
-	router.Run(":8082")
+	router.Run(":8088")
 
 	//Get Global Stats
 	//u := getGlobalStats(globalStats)
@@ -77,7 +78,16 @@ func main() {
 
 func (c *Conf) getConf() *Conf {
 
-	absPath, _ := filepath.Abs("conf.yaml")
+	argsWithoutProg := os.Args[1:]
+	pathyml := ""
+	if len(argsWithoutProg) != 0{
+		pathyml = os.Args[1] 
+	}else{
+		pathyml = "conf.yaml"
+	}
+
+
+	absPath, _ := filepath.Abs(pathyml)
 	yamlFile, err := ioutil.ReadFile(absPath)
 	if err != nil {
 		log.Printf("yamlFile.Get err   #%v ", err)
@@ -130,7 +140,7 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 
 func initializeRoutes() {
 	// Setup route group for the API
-	api := router.Group("/api")
+	api := router.Group("/currencies/api")
 
 	/****  REST API ****/
 	//Stats

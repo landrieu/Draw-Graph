@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { createBrowserHistory } from 'history';
 import Parameters from './services/Parameters';
 import Graph from './tools/Graph';
 import './App.css';
@@ -6,6 +7,10 @@ import Stats from './components/Stats/Stats';
 import Select from './components/Select/Select';
 import Graphic from './components/Graph/Graph';
 import axios from 'axios';
+
+export const history = createBrowserHistory({
+  basename: process.env.PUBLIC_URL
+});
 
 class App extends Component {
   state = {
@@ -41,7 +46,7 @@ class App extends Component {
   }
 
   initWebSocket(){
-    var url = "ws://localhost:8082/ws";
+    var url = Parameters.WS_PATH;
     var ws = new WebSocket(url);
       
     var send = function(data){
@@ -92,7 +97,7 @@ class App extends Component {
   }
 
   sendRequest(req, callback){
-    let url = Parameters.API_PATH + 'api';
+    let url = Parameters.API_PATH;
     url += req.apiPath || "";
     url += req.param ? "?" + req.param : "";
 
